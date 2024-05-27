@@ -1,0 +1,38 @@
+name: Push-to-EC2
+
+# Trigger deployment only on push to main branch
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to EC2 on master branch push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the files
+        uses: actions/checkout@v2
+
+      - name: Deploy to EC2
+        uses: easingthemes/ssh-deploy@v3.0.1
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          REMOTE_HOST: ${{ secrets.HOST_DNS }}
+          REMOTE_USER: ${{ secrets.USERNAME }}
+          TARGET: ${{ secrets.TARGET_DIR }}
+
+      # - name: Executing remote ssh commands using ssh key
+      #   uses: appleboy/ssh-action@master
+      #   with:
+      #     host: ${{ secrets.HOST_DNS }}
+      #     username: ${{ secrets.USERNAME }}
+      #     key: ${{ secrets.EC2_SSH_KEY }}
+      #     script: |
+      #       sudo apt-get -y update
+      #       tmux kill-session -t bot_session
+      #       tmux new-session -d -s bot_session
+      #       tmux send-keys -t bot_session 'cd jam_bot' C-m
+      #       tmux send-keys -t bot_session 'poetry run' C-m
+      #       tmux send-keys -t bot_session 'python3 app.py' C-m
