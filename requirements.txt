@@ -1,2 +1,3 @@
-python-telegram-bot
 fastapi
+python-telegram-bot
+uvicron

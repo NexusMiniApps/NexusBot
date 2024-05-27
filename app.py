@@ -22,10 +22,19 @@
 #     print(f"Your bot is listening! Navigate to http://t.me/{BOT_USERNAME} to interact with it!")
 #     application.run_polling()
 
+
+#app.py
+
 from fastapi import FastAPI
 
 app = FastAPI()
 
-@app.get("/")
-def index():
-    return {"message": "Hello World"}
+
+@app.get('/')
+def hello_world():
+    return "Hello,World"
+
+
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run(app)
