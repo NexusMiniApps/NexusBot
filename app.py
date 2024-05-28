@@ -29,7 +29,7 @@ logging.basicConfig(
 async def launch_web_ui(update: Update, callback: CallbackContext):
     # Test bot interface by showing google for now
     kb = [
-        [InlineKeyboardButton("Show me what you got!", web_app=WebAppInfo("https://google.com"))]
+        [InlineKeyboardButton("Show me what you got!", web_app=WebAppInfo("https://nexusmeet.vercel.app/new-meeting"))]
     ]
 
     await update.message.reply_text("Where you headed?", reply_markup=InlineKeyboardMarkup(kb))
