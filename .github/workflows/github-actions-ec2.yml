@@ -35,4 +35,3 @@ jobs:
             tmux new-session -d -s bot_session
             tmux send-keys -t bot_session 'cd nexus_meet' C-m
             tmux send-keys -t bot_session 'python3 app.py' C-m
-name: Push-to-EC2
