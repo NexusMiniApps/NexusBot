@@ -50,9 +50,18 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     await query.edit_message_text(text=f"Selected option: {query.data}")
 
+async def post_init(application: Application) -> None:
+    await application.bot.set_my_commands([('start', 'Starts the bot'), ('test', 'Test the bot')])
+
+
+
+
 if __name__ == '__main__':
     # Run app builder
-    application = Application.builder().token(BOT_TOKEN).build()
+    
+    # application = Application.builder().token(BOT_TOKEN).build()
+
+    application = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
     
     # Add bot listeners for start command and web app data
     application.add_handler(CommandHandler('start', launch_web_ui))
