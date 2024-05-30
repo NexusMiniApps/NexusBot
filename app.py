@@ -37,6 +37,10 @@ async def start_command(update: Update, callback: CallbackContext):
 async def test_command(update: Update, callback: CallbackContext):
     await update.message.reply_text("Test command executed")
 
+async def handle_message(update: Update, callback: CallbackContext):
+    text = await str(update.message.text).lower()
+    await update.message.reply_text(f"Your message was: {text}")
+
 async def web_app_data(update: Update, context: CallbackContext):
     data = json.loads(update.message.web_app_data.data)
     await update.message.reply_text("Your data was:")
@@ -63,11 +67,12 @@ if __name__ == '__main__':
     
     # Command Handlers
     application.add_handler(CommandHandler('start', start_command))
-    application.add_handler(CommandHandler('test', start_command))
+    application.add_handler(CommandHandler('test', test_command))
     
     # Other Handlers
-    application.add_handler(CallbackQueryHandler(button))
+    application.add_handler(MessageHandler(filters.Text, handle_message))
     application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data))   
+    application.add_handler(CallbackQueryHandler(button))
     
     # Run the bot 
     application.run_polling()
