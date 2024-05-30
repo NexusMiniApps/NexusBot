@@ -39,22 +39,22 @@ async def echo_command(update: Update, context: CallbackContext):
     await update.message.reply_text("You said: " + user_says)
 
 async def schedule_command(update: Update, context: CallbackContext):
-    kb = [
-        [InlineKeyboardButton("Create a meeting!", web_app=WebAppInfo("https://nexusmeet.vercel.app/new-meeting"))]
-    ] 
-    await context.bot.send_message(chat_id=update.message.chat_id, text="Schedule a meeting", reply_markup=InlineKeyboardMarkup(kb))
+    # kb = [
+    #     [InlineKeyboardButton("Create a meeting!", web_app=WebAppInfo("https://nexusmeet.vercel.app/new-meeting"))]
+    # ] 
+    # await context.bot.send_message(chat_id=update.message.chat_id, text="Schedule a meeting", reply_markup=InlineKeyboardMarkup(kb))
 
-    # chat = update.message.chat
-    # if chat.type == "private":
-    #     kb = [
-    #         [InlineKeyboardButton("Create a meeting!", web_app=WebAppInfo("https://nexusmeet.vercel.app/new-meeting"))]
-    #     ]
-    # else:
-    #     kb = [
-    #         [InlineKeyboardButton("Create a meeting!", url="https://nexusmeet.vercel.app/new-meeting")]
-    #     ]
+    chat = update.message.chat
+    if chat.type == "private":
+        kb = [
+            [InlineKeyboardButton("Create a meeting!", web_app=WebAppInfo("https://nexusmeet.vercel.app/new-meeting"))]
+        ]
+    else:
+        kb = [
+            [InlineKeyboardButton("Create a meeting!", url="https://nexusmeet.vercel.app/new-meeting")]
+        ]
 
-    # await update.message.reply_text("Welcome to NexusMeet!", reply_markup=InlineKeyboardMarkup(kb))
+    await update.message.reply_text("Welcome to NexusMeet!", reply_markup=InlineKeyboardMarkup(kb))
 
 async def handle_message(update: Update, callback: CallbackContext):
     text = str(update.message.text).lower()
