@@ -26,7 +26,7 @@ logging.basicConfig(
 
 # ngrok http --domain=electric-peacock-nearly.ngrok-free.app 3000
 
-async def start_command(update: Update, callback: CallbackContext):
+async def start_command(update: Update, context: CallbackContext):
     # Test bot interface by showing google for now
     kb = [
         [InlineKeyboardButton("Create a meeting!", web_app=WebAppInfo("https://nexusmeet.vercel.app/new-meeting"))]
@@ -34,8 +34,10 @@ async def start_command(update: Update, callback: CallbackContext):
 
     await update.message.reply_text("Where you headed?", reply_markup=InlineKeyboardMarkup(kb))
 
-async def test_command(update: Update, callback: CallbackContext):
+async def test_command(update: Update, context: CallbackContext):
     await update.message.reply_text("Test command executed")
+    user_says = " ".join(context.args)
+    await update.message.reply_text("You said: " + user_says)
 
 async def handle_message(update: Update, callback: CallbackContext):
     text = str(update.message.text).lower()
@@ -73,8 +75,8 @@ if __name__ == '__main__':
     application.add_handler(MessageHandler(filters.Text, handle_message))
 
     # Web App Data Handler
-    application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data))   
-    application.add_handler(CallbackQueryHandler(button))
+    # application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data))   
+    # application.add_handler(CallbackQueryHandler(button))
     
     # Run the bot 
     application.run_polling()
