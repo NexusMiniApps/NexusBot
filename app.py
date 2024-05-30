@@ -38,6 +38,12 @@ async def echo_command(update: Update, context: CallbackContext):
     user_says = " ".join(context.args)
     await update.message.reply_text("You said: " + user_says)
 
+async def schedule_command(update: Update, context: CallbackContext):
+    kb = [
+        [InlineKeyboardButton("Create a meeting!", web_app=WebAppInfo("https://nexusmeet.vercel.app/new-meeting"))]
+    ]
+    await context.bot.send_message(chat_id=update.message.chat_id, text="Welcome to NexusMeet!", reply_markup=InlineKeyboardMarkup(kb))
+
 async def handle_message(update: Update, callback: CallbackContext):
     text = str(update.message.text).lower()
     await update.message.reply_text(f"Your message was: {text}")
@@ -60,7 +66,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # Sets the bot commands
 async def post_init(application: Application) -> None:
-    await application.bot.set_my_commands([('start', 'Starts the bot'), ('echo', 'Add some commands after the command')])
+    await application.bot.set_my_commands([('start', 'Starts the bot'), ('echo', 'Add some commands after the command'), ('schedule', 'Schedule a meeting')])
 
 if __name__ == '__main__':
     # Run app builder
@@ -69,6 +75,7 @@ if __name__ == '__main__':
     # Command Handlers
     application.add_handler(CommandHandler('start', start_command))
     application.add_handler(CommandHandler('echo', echo_command))
+    application.add_handler(CommandHandler('echo', schedule_command))
     
     # Message Handlers
     application.add_handler(MessageHandler(filters.Text, handle_message))
