@@ -26,13 +26,16 @@ logging.basicConfig(
 
 # ngrok http --domain=electric-peacock-nearly.ngrok-free.app 3000
 
-async def launch_web_ui(update: Update, callback: CallbackContext):
+async def start_command(update: Update, callback: CallbackContext):
     # Test bot interface by showing google for now
     kb = [
         [InlineKeyboardButton("Show me what you got!", web_app=WebAppInfo("https://nexusmeet.vercel.app/new-meeting"))]
     ]
 
     await update.message.reply_text("Where you headed?", reply_markup=InlineKeyboardMarkup(kb))
+
+async def test_command(update: Update, callback: CallbackContext):
+    await update.message.reply_text("Test command executed")
 
 async def web_app_data(update: Update, context: CallbackContext):
     data = json.loads(update.message.web_app_data.data)
@@ -50,23 +53,22 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     await query.edit_message_text(text=f"Selected option: {query.data}")
 
+# Sets the bot commands
 async def post_init(application: Application) -> None:
     await application.bot.set_my_commands([('start', 'Starts the bot'), ('test', 'Test the bot')])
 
-
-
-
 if __name__ == '__main__':
     # Run app builder
-    
-    # application = Application.builder().token(BOT_TOKEN).build()
-
     application = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
     
-    # Add bot listeners for start command and web app data
-    application.add_handler(CommandHandler('start', launch_web_ui))
+    # Command Handlers
+    application.add_handler(CommandHandler('start', start_command))
+    application.add_handler(CommandHandler('test', start_command))
+    
+    # Other Handlers
     application.add_handler(CallbackQueryHandler(button))
     application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data))   
-    print(f"Your bot is listening! Navigate to http://t.me/{BOT_USERNAME} to interact with it!")
+    
+    # Run the bot 
     application.run_polling()
     
