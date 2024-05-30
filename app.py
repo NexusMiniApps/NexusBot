@@ -27,15 +27,14 @@ logging.basicConfig(
 # ngrok http --domain=electric-peacock-nearly.ngrok-free.app 3000
 
 async def start_command(update: Update, context: CallbackContext):
-    # Test bot interface by showing google for now
     kb = [
         [InlineKeyboardButton("Create a meeting!", web_app=WebAppInfo("https://nexusmeet.vercel.app/new-meeting"))]
     ]
 
-    await update.message.reply_text("Where you headed?", reply_markup=InlineKeyboardMarkup(kb))
+    await update.message.reply_text("Welcome to NexusMeet!", reply_markup=InlineKeyboardMarkup(kb))
 
-async def test_command(update: Update, context: CallbackContext):
-    await update.message.reply_text("Test command executed")
+async def echo_command(update: Update, context: CallbackContext):
+    await update.message.reply_text("Echo command executed")
     user_says = " ".join(context.args)
     await update.message.reply_text("You said: " + user_says)
 
@@ -61,7 +60,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # Sets the bot commands
 async def post_init(application: Application) -> None:
-    await application.bot.set_my_commands([('start', 'Starts the bot'), ('test', 'Test the bot')])
+    await application.bot.set_my_commands([('start', 'Starts the bot'), ('echo', 'Add some commands after the command')])
 
 if __name__ == '__main__':
     # Run app builder
@@ -69,14 +68,14 @@ if __name__ == '__main__':
     
     # Command Handlers
     application.add_handler(CommandHandler('start', start_command))
-    application.add_handler(CommandHandler('test', test_command))
+    application.add_handler(CommandHandler('echo', echo_command))
     
     # Message Handlers
     application.add_handler(MessageHandler(filters.Text, handle_message))
 
     # Web App Data Handler
-    # application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data))   
-    # application.add_handler(CallbackQueryHandler(button))
+    application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data))   
+    application.add_handler(CallbackQueryHandler(button))
     
     # Run the bot 
     application.run_polling()
