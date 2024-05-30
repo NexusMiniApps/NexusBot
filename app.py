@@ -29,7 +29,7 @@ logging.basicConfig(
 async def start_command(update: Update, callback: CallbackContext):
     # Test bot interface by showing google for now
     kb = [
-        [InlineKeyboardButton("Show me what you got!", web_app=WebAppInfo("https://nexusmeet.vercel.app/new-meeting"))]
+        [InlineKeyboardButton("Create a meeting!", web_app=WebAppInfo("https://nexusmeet.vercel.app/new-meeting"))]
     ]
 
     await update.message.reply_text("Where you headed?", reply_markup=InlineKeyboardMarkup(kb))
@@ -38,7 +38,7 @@ async def test_command(update: Update, callback: CallbackContext):
     await update.message.reply_text("Test command executed")
 
 async def handle_message(update: Update, callback: CallbackContext):
-    text = await str(update.message.text).lower()
+    text = str(update.message.text).lower()
     await update.message.reply_text(f"Your message was: {text}")
 
 async def web_app_data(update: Update, context: CallbackContext):
@@ -69,8 +69,10 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler('start', start_command))
     application.add_handler(CommandHandler('test', test_command))
     
-    # Other Handlers
+    # Message Handlers
     application.add_handler(MessageHandler(filters.Text, handle_message))
+
+    # Web App Data Handler
     application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data))   
     application.add_handler(CallbackQueryHandler(button))
     
