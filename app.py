@@ -23,7 +23,6 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-
 # ngrok http --domain=electric-peacock-nearly.ngrok-free.app 3000
 
 async def start_command(update: Update, context: CallbackContext):
@@ -39,6 +38,7 @@ async def echo_command(update: Update, context: CallbackContext):
     await update.message.reply_text("You said: " + user_says)
 
 async def schedule_command(update: Update, context: CallbackContext):
+    await update.message.reply_text("Scheduling a meeting...")
     await update.message.reply_text(
         f"Meeting [{context.args}](https://t.me/NexusMiniApps_Bot/NexusMeet)", 
         parse_mode='Markdown'
