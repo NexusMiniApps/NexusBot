@@ -28,7 +28,7 @@ logging.basicConfig(
 
 async def start_command(update: Update, context: CallbackContext):
     kb = [
-        [InlineKeyboardButton("Create a meeting!", web_app=WebAppInfo("https://t.me/NexusMiniApps_Bot/NexusMeet"))]
+        [InlineKeyboardButton("Create a meeting!", web_app=WebAppInfo("https://nexusmeet.vercel.app/new-meeting"))]
     ]
 
     await update.message.reply_text("Welcome to NexusMeet!", reply_markup=InlineKeyboardMarkup(kb))
@@ -42,11 +42,11 @@ async def schedule_command(update: Update, context: CallbackContext):
     chat = update.message.chat
     if chat.type == "private":
         kb = [
-            [InlineKeyboardButton("Create a meeting!", web_app=WebAppInfo("https://t.me/NexusMiniApps_Bot/NexusMeet"))]
+            [InlineKeyboardButton("Create a meeting!", web_app=WebAppInfo("https://nexusmeet.vercel.app/new-meeting"))]
         ]
     else:
         kb = [
-            [InlineKeyboardButton("Create a meeting!", url="https://t.me/NexusMiniApps_Bot/NexusMeet")]
+            [InlineKeyboardButton("Create a meeting!", url="https://nexusmeet.vercel.app/new-meeting")]
         ]
 
     await update.message.reply_text("Welcome to NexusMeet!", reply_markup=InlineKeyboardMarkup(kb))
