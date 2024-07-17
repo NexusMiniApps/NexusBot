@@ -1,5 +1,6 @@
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application,ApplicationBuilder, CallbackContext, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
+from telegram.constants import ParseMode
 import json
 import logging
 import os
@@ -39,10 +40,7 @@ async def echo_command(update: Update, context: CallbackContext):
 
 async def schedule_command(update: Update, context: CallbackContext):
     await update.message.reply_text("Scheduling a meeting...")
-    await update.message.reply_text(
-        f"Meeting [{context.args}](https://t.me/NexusMiniApps_Bot/NexusMeet)", 
-        parse_mode='Markdown'
-    )
+    await update.message.reply_text(f"Meeting [{context.args}](https://t.me/NexusMiniApps_Bot/NexusMeet)", parse_mode=ParseMode.MARKDOWN_V2)
 
 async def handle_message(update: Update, callback: CallbackContext):
     text = str(update.message.text).lower()
