@@ -12,6 +12,8 @@ if os.path.exists(".env"):
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 BOT_USERNAME = os.getenv('BOT_USERNAME')
+BOT_URL = os.getenv('BOT_URL','https://t.me/NexusMiniApps_Bot/NexusMeet')
+APP_URL = os.getenv('APP_URL', "https://nexusmeet.vercel.app/new-meeting")
 
 # Defaults to local dev environment
 ENDPOINT = os.getenv("DEV_URL")
@@ -28,7 +30,7 @@ logging.basicConfig(
 
 async def start_command(update: Update, context: CallbackContext):
     kb = [
-        [InlineKeyboardButton("Create a meeting!", web_app=WebAppInfo("https://nexusmeet.vercel.app/new-meeting"))]
+        [InlineKeyboardButton("Create a meeting!", web_app=WebAppInfo(APP_URL))]
     ]
 
     await update.message.reply_text("Welcome to NexusMeet!", reply_markup=InlineKeyboardMarkup(kb))
@@ -40,7 +42,7 @@ async def echo_command(update: Update, context: CallbackContext):
 
 async def schedule_command(update: Update, context: CallbackContext):
     await update.message.reply_text("Scheduling a meeting....")
-    await update.message.reply_text(f"Meeting [{context.args}](https://t.me/NexusMiniApps_Bot/NexusMeet)", parse_mode=ParseMode.MARKDOWN_V2)
+    await update.message.reply_text(f"Meeting [{context.args}]({BOT_URL})", parse_mode=ParseMode.MARKDOWN_V2)
 
 async def handle_message(update: Update, callback: CallbackContext):
     text = str(update.message.text).lower()
