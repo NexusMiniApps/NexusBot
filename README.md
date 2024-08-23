@@ -23,4 +23,6 @@ BOT_URL='https://t.me/[your_bot_name]'
 # Debugging in telegram
 1. Follow the instructions [here](https://docs.ton.org/develop/dapps/telegram-apps/testing-apps)
 
-Side Note: I am still unsure of the difference between  BOT_URL='https://t.me/ and MINI_APP_URL='t.me/aug23nexus_bot/aug23nexusapp'. You can register the mini app with botfather but i don't understand what is being done.
+Side Note: I am still unsure of the difference between the bot url and the mini app url. You can register the mini app with botfather but I don't understand what is the point yet. 
+- BOT_URL='https://t.me/aug23nexus_bot'
+- MINI_APP_URL='t.me/aug23nexus_bot/aug23nexusapp'. 
