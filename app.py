@@ -141,6 +141,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler('start', start_command))
     application.add_handler(CommandHandler('echo', echo_command))
     application.add_handler(CommandHandler('schedule', schedule_command))
+    application.add_handler(CommandHandler('confirm', confirm_command))
     application.add_handler(CallbackQueryHandler(button_callback))
     
     # Message Handlers
