@@ -5,15 +5,22 @@ import json
 import logging
 import os
 import asyncio
+from supabase import create_client, Client
 
 if os.path.exists(".env"):
     # if we see the .env file, load it
     from dotenv import load_dotenv
     load_dotenv()
 
+# Telegram Bot setup
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 BOT_URL = os.getenv('BOT_URL','https://t.me/NexusMiniApps_Bot/NexusMeet')
 APP_URL = os.getenv('APP_URL', "https://nexusmeet.vercel.app/new-meeting")
+
+# Supabase setup
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Defaults to local dev environment
 ENDPOINT = os.getenv("DEV_URL")
@@ -71,6 +78,38 @@ async def echo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message_text,
         reply_markup=reply_markup
     )
+    
+async def confirm_command(update: Update, context: CallbackContext):
+    print("Confirm command triggered")
+    try:
+        # Fetch event name and chat id from the message
+        if context.args:
+            event_name = " ".join(context.args)
+        else:
+            await update.message.reply_text("Please provide the event name.")
+            return
+        
+        chat_id = update.effective_chat.id
+        print(f"Event: {event_name}, Chat ID: {chat_id}")
+        # Query Supabase for the event and chat_id
+        data = supabase.table('Event').select('*').eq('name', event_name).eq('chatId', chat_id).execute()
+        
+        # Check if the event exists
+        if len(data.data) > 0:
+            # Construct the mini-app URL to open the to_confirm form and idea viewer
+            app_url = f"https://your-app-url.com/{event_name}"
+
+            # Open the mini-app by sending a message with an inline button
+            keyboard = [[InlineKeyboardButton("Open Mini-App", url=app_url)]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await update.message.reply_text("Event confirmed! Open the mini-app:", reply_markup=reply_markup)
+        else:
+            await update.message.reply_text("No such event found for this chat.")
+    
+    except Exception as e:
+        await update.message.reply_text(f"An error occurred: {e}")
+
 
 async def schedule_command(update: Update, context: CallbackContext):
     await update.message.reply_text("Scheduling a meeting....")
@@ -145,7 +184,7 @@ if __name__ == '__main__':
     application.add_handler(CallbackQueryHandler(button_callback))
     
     # Message Handlers
-    application.add_handler(MessageHandler(filters.Text, handle_message))
+    # application.add_handler(MessageHandler(filters.Text, handle_message))
 
     # Web App Data Handler
     application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data))   
