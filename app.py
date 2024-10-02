@@ -12,7 +12,6 @@ if os.path.exists(".env"):
     load_dotenv()
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-BOT_USERNAME = os.getenv('BOT_USERNAME')
 BOT_URL = os.getenv('BOT_URL','https://t.me/NexusMiniApps_Bot/NexusMeet')
 APP_URL = os.getenv('APP_URL', "https://nexusmeet.vercel.app/new-meeting")
 
