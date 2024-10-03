@@ -5,20 +5,34 @@ import json
 import logging
 import os
 import asyncio
+from supabase import create_client, Client
+
+# Replace these with your actual Supabase project URL and API key
+
+# Initialize the Supabase client
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 if os.path.exists(".env"):
     # if we see the .env file, load it
     from dotenv import load_dotenv
     load_dotenv()
 
+
 BOT_TOKEN = os.getenv('BOT_TOKEN')
+MINI_APP_URL = os.getenv('MINI_APP_URL')
 BOT_URL = os.getenv('BOT_URL','https://t.me/NexusMiniApps_Bot/NexusMeet')
 APP_URL = os.getenv('APP_URL', "https://nexusmeet.vercel.app/new-meeting")
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+
 
 # Defaults to local dev environment
 ENDPOINT = os.getenv("DEV_URL")
 if ENDPOINT is None:
     ENDPOINT = os.getenv('LIVE_URL')
+    
+VOTE_ENDPOINT= os.getenv("VOTE_ENDPOINT")
+SHARE_ENDPOINT = os.getenv("SHARE_ENDPOINT")
 
 
 logging.basicConfig(
@@ -30,10 +44,12 @@ logging.basicConfig(
 
 async def start_command(update: Update, context: CallbackContext):
     kb = [
-        [InlineKeyboardButton("Create a meeting!", web_app=WebAppInfo(APP_URL))]
+        [InlineKeyboardButton("Show me stagemate!", web_app=WebAppInfo('https://www.google.com'))],
     ]
 
-    await update.message.reply_text("Welcome to NexusMeet!", reply_markup=InlineKeyboardMarkup(kb))
+    await update.message.reply_text("Where you headed?", reply_markup=InlineKeyboardMarkup(kb))
+
+
 
 # Dictionary to store event data
 events = {}
@@ -58,11 +74,16 @@ async def echo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "sharers": set()
     }
     
-    keyboard = [
-        [InlineKeyboardButton(f"Vote for your favourite idea! (0)", callback_data=f"vote_{event_id}")],
-        [InlineKeyboardButton(f"Share your idea! (0)", callback_data=f"share_{event_id}")]
+    # keyboard = [
+    #     [InlineKeyboardButton(f"Vote for your favourite idea! (0)", callback_data=f"vote_{event_id}")],
+    #     [InlineKeyboardButton(f"Share your idea! (0)", callback_data=f"share_{event_id}")]
+    # ]
+    
+    kb = [
+        [InlineKeyboardButton("Vote for your idea!", web_app=WebAppInfo(VOTE_ENDPOINT))],
+        [InlineKeyboardButton("Share your idea!", web_app=WebAppInfo(SHARE_ENDPOINT))]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    reply_markup = InlineKeyboardMarkup(kb)
 
     message_text = f"{user_mention} wants to hold \"{event_name}\" and is calling for ideas!\n\n"
     message_text += "Help make it a successful event and contribute your ideas!"
@@ -72,9 +93,35 @@ async def echo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
-async def schedule_command(update: Update, context: CallbackContext):
-    await update.message.reply_text("Scheduling a meeting....")
-    await update.message.reply_text(f"Meeting [{context.args}]({BOT_URL})", parse_mode=ParseMode.MARKDOWN_V2)
+async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Please provide an event name after /schedule.")
+        return
+
+    event_name = " ".join(context.args)
+    user = update.effective_user
+    user_mention = user.mention_html()
+
+    # Construct the combined message
+    message = (
+        f"{user_mention} is proposing that we have: {event_name}\n\n"
+        "Choose an action below:"
+    )
+
+    # Create inline keyboard buttons stacked vertically
+    keyboard = [
+        [InlineKeyboardButton("Share your ideas", url=MINI_APP_URL)],
+        [InlineKeyboardButton("Vote for your favorite idea", url=MINI_APP_URL)]
+    ]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Send the message with HTML formatting and inline keyboard
+    await update.message.reply_text(
+        message,
+        parse_mode=ParseMode.HTML,
+        reply_markup=reply_markup
+    )
 
 async def handle_message(update: Update, callback: CallbackContext):
     text = str(update.message.text).lower()
@@ -131,24 +178,48 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def post_init(application: Application) -> None:
     await application.bot.set_my_commands([('start', 'Starts the bot'), ('echo', 'Add some commands after the command'), ('schedule', 'Schedule a meeting')])
 
+async def insert_message(message_text, sender_id):
+    data = {
+        "id": 'testid',
+        "name": 'testevent',
+        'description': 'this event is a big deal',
+        'userId': 'ryan',
+        'chatId': '123'
+    }
+    response = supabase.table('Event').insert(data).execute()
+    if response.status_code == 201:
+        print("Data inserted successfully.")
+    else:
+        print(f"Error inserting data: {response.data}")
+
+async def handle_message(update, context):
+    message_text = update.message.text
+    sender_id = update.message.from_user.id
+    # Trigger insert_message
+    await insert_message(message_text, sender_id)
+    await update.message.reply_text("Your message has been saved.")
+
 
 
 if __name__ == '__main__':
     # Run app builder
-    application = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
+    application = Application.builder().token(BOT_TOKEN).build()
     
     # Command Handlers
+    message_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+    application.add_handler(message_handler)
+
     application.add_handler(CommandHandler('start', start_command))
     application.add_handler(CommandHandler('echo', echo_command))
     application.add_handler(CommandHandler('schedule', schedule_command))
-    application.add_handler(CallbackQueryHandler(button_callback))
+    # application.add_handler(CallbackQueryHandler(button_callback))
     
     # Message Handlers
     application.add_handler(MessageHandler(filters.Text, handle_message))
 
     # Web App Data Handler
     application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data))   
-    application.add_handler(CallbackQueryHandler(button))
+    # application.add_handler(CallbackQueryHandler(button))
     
     # Run the bot 
     application.run_polling()
