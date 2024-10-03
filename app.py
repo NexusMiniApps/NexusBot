@@ -136,10 +136,14 @@ async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     
+    # Should retrieve state of DB and check if the event already exists (?)
+    # Should update User DB with the current user, then use UserId to update Event DB (?)
+    
     data = {
-        "id": 'testid',
+        "id": event_name,
         "name": event_name,
         'description': 'this event is a big deal',
+        # Hardcoded to Janessa's pk atm
         'userId': 'cm1rdmlg1000013b4jwrt8nhp',
         'chatId': '123'
     }
