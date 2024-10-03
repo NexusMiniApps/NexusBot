@@ -14,6 +14,7 @@ if os.path.exists(".env"):
 
 # Telegram Bot setup
 BOT_TOKEN = os.getenv('BOT_TOKEN')
+MINI_APP_URL = os.getenv('MINI_APP_URL')
 BOT_URL = os.getenv('BOT_URL','https://t.me/NexusMiniApps_Bot/NexusMeet')
 APP_URL = os.getenv('APP_URL', "https://nexusmeet.vercel.app/new-meeting")
 
@@ -26,7 +27,8 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 ENDPOINT = os.getenv("DEV_URL")
 if ENDPOINT is None:
     ENDPOINT = os.getenv('LIVE_URL')
-
+VOTE_ENDPOINT= os.getenv("VOTE_ENDPOINT")
+SHARE_ENDPOINT = os.getenv("SHARE_ENDPOINT")
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -111,9 +113,51 @@ async def confirm_command(update: Update, context: CallbackContext):
         await update.message.reply_text(f"An error occurred: {e}")
 
 
-async def schedule_command(update: Update, context: CallbackContext):
-    await update.message.reply_text("Scheduling a meeting....")
-    await update.message.reply_text(f"Meeting [{context.args}]({BOT_URL})", parse_mode=ParseMode.MARKDOWN_V2)
+async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Please provide an event name after /schedule.")
+        return
+
+    event_name = " ".join(context.args)
+    user = update.effective_user
+    user_mention = user.mention_html()
+
+    # Construct the combined message
+    message = (
+        f"{user_mention} is proposing that we have: {event_name}\n\n"
+        "Choose an action below:"
+    )
+
+    # Create inline keyboard buttons stacked vertically
+    keyboard = [
+        [InlineKeyboardButton("Share your ideas", url=MINI_APP_URL)],
+        [InlineKeyboardButton("Vote for your favorite idea", url=MINI_APP_URL)]
+    ]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    data = {
+        "id": 'testid',
+        "name": event_name,
+        'description': 'this event is a big deal',
+        'userId': 'cm1rdmlg1000013b4jwrt8nhp',
+        'chatId': '123'
+    }
+    
+    try:
+        response = supabase.table('Event').insert(data).execute()            
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return
+    
+    print("Data inserted successfully.")
+
+    # Send the message with HTML formatting and inline keyboard
+    await update.message.reply_text(
+        message,
+        parse_mode=ParseMode.HTML,
+        reply_markup=reply_markup
+    )
 
 async def handle_message(update: Update, callback: CallbackContext):
     text = str(update.message.text).lower()
