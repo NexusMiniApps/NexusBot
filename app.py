@@ -80,7 +80,9 @@ async def echo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message_text,
         reply_markup=reply_markup
     )
-    
+
+
+# Handles the /confirm command to confirm an event
 async def confirm_command(update: Update, context: CallbackContext):
     print("Confirm command triggered")
     try:
@@ -94,12 +96,12 @@ async def confirm_command(update: Update, context: CallbackContext):
         chat_id = update.effective_chat.id
         print(f"Event: {event_name}, Chat ID: {chat_id}")
         # Query Supabase for the event and chat_id
-        data = supabase.table('Event').select('*').eq('name', event_name).eq('chatId', chat_id).execute()
+        data = supabase.table('Event').select('*').eq('name', event_name).eq('chatId', chat_id).eq('status', "PENDING").execute()
         
         # Check if the event exists
         if len(data.data) > 0:
             # Construct the mini-app URL to open the to_confirm form and idea viewer
-            app_url = f"https://your-app-url.com/{event_name}"
+            app_url = f"http://localhost:3000/eventId"
 
             # Open the mini-app by sending a message with an inline button
             keyboard = [[InlineKeyboardButton("Open Mini-App", url=app_url)]]
@@ -111,6 +113,70 @@ async def confirm_command(update: Update, context: CallbackContext):
     
     except Exception as e:
         await update.message.reply_text(f"An error occurred: {e}")
+        
+# Function to handle event confirmation from the web app
+'''
+Params:
+- event_id: Unique ID of the event
+- event_name: Name of the event
+- chat_id: ID of the chat where the event was proposed
+- user_id: ID of the user who confirmed the event
+'''
+async def handle_event_confirmation(event_name, event_id, chat_id, user_id):
+    # Create inline buttons
+    keyboard = [
+        [InlineKeyboardButton("✅", callback_data=f"upvote_{event_id}_{event_name}_{chat_id}_{user_id}"),
+         InlineKeyboardButton("❌", callback_data=f"downvote_{event_id}_{event_name}_{chat_id}_{user_id}"),
+         InlineKeyboardButton("🤔", callback_data=f"questionmark_{event_id}_{event_name}_{chat_id}_{user_id}")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    bot = application.bot
+    # Send message to the group chat
+    bot.send_message(chat_id=chat_id, 
+                     text=f"The {event_name} is confirmed! Let us know if you're coming!",
+                     reply_markup=reply_markup)
+
+### Handle RSVP Button Clicks ###
+def rsvp_button_click_handler(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()
+
+    # Extract event name and action (upvote/downvote) from callback_data
+    action, event_id, event_name, chat_id, user_id = query.data.split("_")
+
+    # Update Supabase counts
+    if action == "upvote":
+        update_supabase_event_vote(event_id, user_id, chat_id, status="Yes")
+    elif action == "downvote":
+        update_supabase_event_vote(event_id, user_id, chat_id, status="No")
+    elif action == "questionmark":
+        update_supabase_event_vote(event_id, user_id, chat_id, status="Maybe")
+
+    # Update the message text
+    query.edit_message_text(text=f"Thanks for your response on {event_name}!")
+
+def update_supabase_event_vote(event_id, user_id, chat_id, status):
+    # Define the status based on the upvote
+    status = status.upper()  # Expecting 'YES', 'NO', or 'MAYBE'
+
+    # Check if the user has already voted
+    response = supabase.from_("EventRSVPs").select("*").eq("eventId", event_id).eq("userId", user_id).execute()
+    
+    if response.data and len(response.data) > 0:
+        # User has already voted, so update the existing vote
+        vote_id = response.data[0]['id']
+        supabase.from_("EventRSVPs").update({"status": status}).eq("id", vote_id).execute()
+        print(f"Updated existing vote for user {user_id} with status {status}")
+    else:
+        # User has not voted yet, insert a new row with the status
+        supabase.from_("EventRSVPs").insert({
+            "eventId": event_id,
+            "userId": user_id,
+            "chatId": chat_id,
+            "status": status
+        }).execute()
+        print(f"Inserted new vote for user {user_id} with status {status}")
 
 
 async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -237,6 +303,7 @@ if __name__ == '__main__':
     # Web App Data Handler
     application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data))   
     application.add_handler(CallbackQueryHandler(button))
+    application.add_handler(CallbackQueryHandler(rsvp_button_click_handler))
     
     # Run the bot 
     application.run_polling()
