@@ -6,6 +6,7 @@ import logging
 import os
 import asyncio
 from supabase import create_client, Client
+import uuid
 
 if os.path.exists(".env"):
     # if we see the .env file, load it
@@ -187,6 +188,61 @@ async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     event_name = " ".join(context.args)
     user = update.effective_user
     user_mention = user.mention_html()
+    chat_id = update.effective_chat.id
+    user_id = user.id
+    
+    # Create a user record in the Supabase DB if it doesn't exist
+    user_data = {
+        "telegramId": user_id,
+        "firstName": user.first_name,
+        "lastName": user.last_name,
+        "username": user.username
+    }
+    
+    # Insert the user into the Supabase DB if it doesn't exist:
+    
+    try:
+        response_user = supabase.table('User').select('*').eq('telegramId', user_id).execute()
+        
+        if response_user.data:
+            # Assuming 'id' is the UUID column in the 'User' table
+            user_uuid = response_user.data[0]['id']
+            print(f"User already exists in the DB. User UUID: {user_uuid}")
+            
+        else:
+            response = supabase.table('User').insert(user_data).execute()
+            if response.data:
+                # Assuming 'id' is the UUID column in the 'User' table
+                user_uuid = response.data[0]['id']
+                print(f"Data inserted successfully. Generated User UUID: {user_uuid}")
+            else:
+                print("No data returned from Supabase.")
+            
+    except Exception as e:
+        print(f"An error occurred while generating user uuid: {e}")
+        return
+    
+    # Insert the event into the Supabase DB:
+    data = {
+        "name": event_name,
+        "description": "",
+        "chatId": chat_id,
+        "userId": user_uuid,
+        "status": "PENDING"
+    }
+    
+    try:
+        response = supabase.table('Event').insert(data).execute()
+        if response.data:
+            # Assuming 'id' is the UUID column in the 'Event' table
+            generated_uuid = response.data[0]['id']
+            print(f"Data inserted successfully. Generated Event UUID: {generated_uuid}")
+        else:
+            print("No data returned from Supabase.")
+    
+    except Exception as e:
+        print(f"An error occurred while generating Event in DB: {e}")
+        return
 
     # Construct the combined message
     message = (
@@ -201,26 +257,6 @@ async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    # Should retrieve state of DB and check if the event already exists (?)
-    # Should update User DB with the current user, then use UserId to update Event DB (?)
-    
-    data = {
-        "id": event_name,
-        "name": event_name,
-        'description': 'this event is a big deal',
-        # Hardcoded to Janessa's pk atm
-        'userId': 'cm1rdmlg1000013b4jwrt8nhp',
-        'chatId': '123'
-    }
-    
-    try:
-        response = supabase.table('Event').insert(data).execute()            
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return
-    
-    print("Data inserted successfully.")
 
     # Send the message with HTML formatting and inline keyboard
     await update.message.reply_text(
