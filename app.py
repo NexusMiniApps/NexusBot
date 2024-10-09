@@ -1,6 +1,7 @@
 from telegram import Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CallbackContext, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 from telegram.constants import ParseMode
+from urllib.parse import urljoin
 import json
 import logging
 import os
@@ -92,6 +93,8 @@ async def echo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     message_text = f"{user_mention} wants to hold \"{event_name}\" and is calling for ideas!\n\n"
     message_text += "Help make it a successful event and contribute your ideas!"
+    
+    
 
     await update.message.reply_html(
         message_text,
@@ -231,7 +234,6 @@ async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print("No data returned from Supabase.")
     
     except Exception as e:
-            
         return
 
     # Construct the combined message
@@ -241,9 +243,12 @@ async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     # Create inline keyboard buttons stacked vertically
+    event_url = urljoin(MINI_APP_URL, f"/event/{generated_uuid}")
+    event_idea_url = urljoin(MINI_APP_URL, f"/event/{generated_uuid}/newidea")
+
     keyboard = [
-        [InlineKeyboardButton("Share your ideas", url=MINI_APP_URL)],
-        [InlineKeyboardButton("Vote for your favorite idea", url=MINI_APP_URL)]
+        [InlineKeyboardButton("Share your ideas", url=event_url)],
+        [InlineKeyboardButton("Vote for your favorite idea", url=event_idea_url)]
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
