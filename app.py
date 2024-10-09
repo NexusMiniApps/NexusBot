@@ -38,6 +38,22 @@ logging.basicConfig(
 
 # ngrok http --domain=electric-peacock-nearly.ngrok-free.app 3000
 
+async def test_function(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print('testing')
+    userId = retrieve_user_key(update.effective_user)
+    print(userId)
+
+# If user exists, retrieve pk, if not create user then retrieve pk
+def retrieve_user_key(user):
+    response = supabase.table('User').select('*').eq('telegramId', user.id).execute()
+    if len(response.data) > 0:
+        print("User exists")
+        return response.data[0]['id']
+    else:
+        print("User doesnt exist")
+        response = supabase.table('User').insert({'telegramId': user.id, 'username': user.username ,'firstName':user.first_name, 'lastName': user.last_name}).execute()
+        return response.data[0]['id']
+
 async def start_command(update: Update, context: CallbackContext):
     kb = [
         [InlineKeyboardButton("Create a meeting!", web_app=WebAppInfo(APP_URL))]
@@ -107,6 +123,7 @@ async def confirm_command(update: Update, context: CallbackContext):
             # Open the mini-app by sending a message with an inline button
             keyboard = [[InlineKeyboardButton("Open Mini-App", url=app_url)]]
             reply_markup = InlineKeyboardMarkup(keyboard)
+            
 
             await update.message.reply_text("Event confirmed! Open the mini-app:", reply_markup=reply_markup)
         else:
@@ -187,41 +204,13 @@ async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     event_name = " ".join(context.args)
     user = update.effective_user
+    
     user_mention = user.mention_html()
     chat_id = update.effective_chat.id
-    user_id = user.id
-    
-    # Create a user record in the Supabase DB if it doesn't exist
-    user_data = {
-        "telegramId": user_id,
-        "firstName": user.first_name,
-        "lastName": user.last_name,
-        "username": user.username
-    }
     
     # Insert the user into the Supabase DB if it doesn't exist:
-    
-    try:
-        response_user = supabase.table('User').select('*').eq('telegramId', user_id).execute()
-        
-        if response_user.data:
-            # Assuming 'id' is the UUID column in the 'User' table
-            user_uuid = response_user.data[0]['id']
-            print(f"User already exists in the DB. User UUID: {user_uuid}")
-            
-        else:
-            response = supabase.table('User').insert(user_data).execute()
-            if response.data:
-                # Assuming 'id' is the UUID column in the 'User' table
-                user_uuid = response.data[0]['id']
-                print(f"Data inserted successfully. Generated User UUID: {user_uuid}")
-            else:
-                print("No data returned from Supabase.")
-            
-    except Exception as e:
-        print(f"An error occurred while generating user uuid: {e}")
-        return
-    
+    user_uuid =  retrieve_user_key(user)
+
     # Insert the event into the Supabase DB:
     data = {
         "name": event_name,
@@ -233,6 +222,7 @@ async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = supabase.table('Event').insert(data).execute()
+        print(data)
         if response.data:
             # Assuming 'id' is the UUID column in the 'Event' table
             generated_uuid = response.data[0]['id']
@@ -241,7 +231,7 @@ async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print("No data returned from Supabase.")
     
     except Exception as e:
-        print(f"An error occurred while generating Event in DB: {e}")
+            
         return
 
     # Construct the combined message
@@ -257,6 +247,14 @@ async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    try:
+        response = supabase.table('Event').insert(data).execute()            
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return
+    
+    print("Data inserted successfully.")
 
     # Send the message with HTML formatting and inline keyboard
     await update.message.reply_text(
@@ -331,6 +329,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler('echo', echo_command))
     application.add_handler(CommandHandler('schedule', schedule_command))
     application.add_handler(CommandHandler('confirm', confirm_command))
+    application.add_handler(CommandHandler('test', test_function))
     application.add_handler(CallbackQueryHandler(button_callback))
     
     # Message Handlers
