@@ -16,7 +16,7 @@ if os.path.exists(".env"):
 
 # Telegram Bot setup
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-MINI_APP_URL = os.getenv('MINI_APP_URL')
+MINI_APP_URL = "https://t.me/nexus1_bot/zzapp/"
 BOT_URL = os.getenv('BOT_URL','https://t.me/NexusMiniApps_Bot/NexusMeet')
 APP_URL = os.getenv('APP_URL', "https://nexusmeet.vercel.app/new-meeting")
 
@@ -146,17 +146,24 @@ Params:
 async def handle_event_confirmation(event_name, event_id, chat_id, user_id):
     # Create inline buttons
     keyboard = [
-        [InlineKeyboardButton("✅", callback_data=f"upvote_{event_id}_{event_name}_{chat_id}_{user_id}"),
-         InlineKeyboardButton("❌", callback_data=f"downvote_{event_id}_{event_name}_{chat_id}_{user_id}"),
-         InlineKeyboardButton("🤔", callback_data=f"questionmark_{event_id}_{event_name}_{chat_id}_{user_id}")]
+        [InlineKeyboardButton("Yes", callback_data=f"upvote_{str(event_id)}_{str(user_id)}"),
+         InlineKeyboardButton("No", callback_data=f"downvote_{str(event_id)}_{str(user_id)}"),
+         InlineKeyboardButton("Maybe", callback_data=f"questionmark_{str(event_id)}_{str(user_id)}")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     bot = application.bot
     # Send message to the group chat
-    bot.send_message(chat_id=chat_id, 
-                     text=f"The {event_name} is confirmed! Let us know if you're coming!",
-                     reply_markup=reply_markup)
+    print(f"Sending confirmation message for event {event_name} to chat {chat_id}...")  # Debugging line
+    
+    # Send message to the group chat
+    try:
+        await bot.send_message(chat_id=chat_id, 
+                               text=f"The {event_name} is confirmed! Let us know if you're coming!",
+                               reply_markup=reply_markup)
+        print("Message sent successfully.")
+    except Exception as e:
+        print(f"Failed to send message: {e}")
 
 ### Handle RSVP Button Clicks ###
 def rsvp_button_click_handler(update: Update, context: CallbackContext):
@@ -241,25 +248,19 @@ async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"{user_mention} is proposing that we have: {event_name}\n\n"
         "Choose an action below:"
     )
-
+    print(MINI_APP_URL)
     # Create inline keyboard buttons stacked vertically
-    event_url = urljoin(MINI_APP_URL, f"/event/{generated_uuid}")
-    event_idea_url = urljoin(MINI_APP_URL, f"/event/{generated_uuid}/newidea")
+    event_url = MINI_APP_URL + f"?uuid={generated_uuid}"
+    event_idea_url = MINI_APP_URL + f"/event/{generated_uuid}/newidea"
+    
+    print(event_url)
 
     keyboard = [
         [InlineKeyboardButton("Share your ideas", url=event_url)],
-        [InlineKeyboardButton("Vote for your favorite idea", url=event_idea_url)]
+        [InlineKeyboardButton("Vote for your favorite idea", url=event_url)]
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    try:
-        response = supabase.table('Event').insert(data).execute()            
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return
-    
-    print("Data inserted successfully.")
 
     # Send the message with HTML formatting and inline keyboard
     await update.message.reply_text(
@@ -268,6 +269,9 @@ async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
+async def test_rsvp_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await handle_event_confirmation(event_name="OpenAI Fan Meet", event_id="3658332e-006a-4236-9826-96a6bcb3da6d", chat_id=update.effective_chat.id, user_id=update.effective_user.id)
+    
 async def handle_message(update: Update, callback: CallbackContext):
     text = str(update.message.text).lower()
     await update.message.reply_text(f"Your message was: {text}")
@@ -335,6 +339,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler('schedule', schedule_command))
     application.add_handler(CommandHandler('confirm', confirm_command))
     application.add_handler(CommandHandler('test', test_function))
+    application.add_handler(CommandHandler('test_rsvp', test_rsvp_command))
     application.add_handler(CallbackQueryHandler(button_callback))
     
     # Message Handlers
