@@ -166,23 +166,28 @@ async def handle_event_confirmation(event_name, event_id, chat_id, user_id):
         print(f"Failed to send message: {e}")
 
 ### Handle RSVP Button Clicks ###
-def rsvp_button_click_handler(update: Update, context: CallbackContext):
+async def rsvp_button_click_handler(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
 
     # Extract event name and action (upvote/downvote) from callback_data
-    action, event_id, event_name, chat_id, user_id = query.data.split("_")
+    action, event_id, user_id = query.data.split("_")
+    chat_id = update.effective_chat.id
+    
+    # Fetch user_uuid from Supabase:
+    user_uuid = retrieve_user_key(update.effective_user)
+    username = update.effective_user.username
 
     # Update Supabase counts
     if action == "upvote":
-        update_supabase_event_vote(event_id, user_id, chat_id, status="Yes")
+        update_supabase_event_vote(event_id, user_uuid, chat_id, status="Yes")
     elif action == "downvote":
-        update_supabase_event_vote(event_id, user_id, chat_id, status="No")
+        update_supabase_event_vote(event_id, user_uuid, chat_id, status="No")
     elif action == "questionmark":
-        update_supabase_event_vote(event_id, user_id, chat_id, status="Maybe")
+        update_supabase_event_vote(event_id, user_uuid, chat_id, status="Maybe")
 
     # Update the message text
-    query.edit_message_text(text=f"Thanks for your response on {event_name}!")
+    await query.edit_message_text(text=f"Thanks for your response, {username}!")
 
 def update_supabase_event_vote(event_id, user_id, chat_id, status):
     # Define the status based on the upvote
@@ -296,7 +301,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    action, event_id = query.data.split('_', 1)
+    action, event_id, user_id = query.data.split('_')
     user_id = update.effective_user.id
 
     if event_id not in events:
@@ -340,14 +345,14 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler('confirm', confirm_command))
     application.add_handler(CommandHandler('test', test_function))
     application.add_handler(CommandHandler('test_rsvp', test_rsvp_command))
-    application.add_handler(CallbackQueryHandler(button_callback))
+    # application.add_handler(CallbackQueryHandler(button_callback))
     
     # Message Handlers
     # application.add_handler(MessageHandler(filters.Text, handle_message))
 
     # Web App Data Handler
     application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data))   
-    application.add_handler(CallbackQueryHandler(button))
+    # application.add_handler(CallbackQueryHandler(button))
     application.add_handler(CallbackQueryHandler(rsvp_button_click_handler))
     
     # Run the bot 
