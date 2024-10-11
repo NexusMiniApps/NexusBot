@@ -6,7 +6,9 @@ import json
 import logging
 import os
 import asyncio
-from supabase import create_client, Client
+from supabase import acreate_client, create_client, Client, AClient
+from supabase.lib.client_options import ClientOptions
+from realtime import AsyncRealtimeChannel, AsyncRealtimeClient
 import uuid
 
 if os.path.exists(".env"):
@@ -23,6 +25,8 @@ APP_URL = os.getenv('APP_URL', "https://nexusmeet.vercel.app/new-meeting")
 # Supabase setup
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+socket = AsyncRealtimeClient(f"{SUPABASE_URL}/realtime/v1", SUPABASE_KEY, auto_reconnect=True)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Defaults to local dev environment
@@ -62,6 +66,7 @@ async def start_command(update: Update, context: CallbackContext):
 
     await update.message.reply_text("Welcome to NexusMeet!", reply_markup=InlineKeyboardMarkup(kb))
 
+'''
 # Dictionary to store event data
 events = {}
 async def echo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -100,7 +105,7 @@ async def echo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message_text,
         reply_markup=reply_markup
     )
-
+'''
 
 # Handles the /confirm command to confirm an event
 async def confirm_command(update: Update, context: CallbackContext):
@@ -146,9 +151,9 @@ Params:
 async def handle_event_confirmation(event_name, event_id, chat_id, user_id):
     # Create inline buttons
     keyboard = [
-        [InlineKeyboardButton("Yes", callback_data=f"upvote_{str(event_id)}_{str(user_id)}"),
-         InlineKeyboardButton("No", callback_data=f"downvote_{str(event_id)}_{str(user_id)}"),
-         InlineKeyboardButton("Maybe", callback_data=f"questionmark_{str(event_id)}_{str(user_id)}")]
+        [InlineKeyboardButton("Yes", callback_data=f"upvote_{event_id}"),
+         InlineKeyboardButton("No", callback_data=f"downvote_{event_id}"),
+         InlineKeyboardButton("Maybe", callback_data=f"questionmark_{event_id}")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -158,36 +163,86 @@ async def handle_event_confirmation(event_name, event_id, chat_id, user_id):
     
     # Send message to the group chat
     try:
-        await bot.send_message(chat_id=chat_id, 
-                               text=f"The {event_name} is confirmed! Let us know if you're coming!",
-                               reply_markup=reply_markup)
-        print("Message sent successfully.")
+        message = await bot.send_message(
+            chat_id=chat_id, 
+            text=f"The {event_name} is confirmed! Let us know if you're coming!",
+            reply_markup=reply_markup
+        )
+        # Store message_id and chat_id associated with the event
+        store_event_message(event_id, chat_id, message.message_id)
+        
     except Exception as e:
         print(f"Failed to send message: {e}")
 
 ### Handle RSVP Button Clicks ###
 async def rsvp_button_click_handler(update: Update, context: CallbackContext):
     query = update.callback_query
-    query.answer()
+    await query.answer(text="Thanks for your response!", show_alert=False)
 
     # Extract event name and action (upvote/downvote) from callback_data
-    action, event_id, user_id = query.data.split("_")
+    action, event_id = query.data.split("_")
     chat_id = update.effective_chat.id
+    message_id = query.message.message_id
     
     # Fetch user_uuid from Supabase:
     user_uuid = retrieve_user_key(update.effective_user)
     username = update.effective_user.username
 
-    # Update Supabase counts
-    if action == "upvote":
-        update_supabase_event_vote(event_id, user_uuid, chat_id, status="Yes")
-    elif action == "downvote":
-        update_supabase_event_vote(event_id, user_uuid, chat_id, status="No")
-    elif action == "questionmark":
-        update_supabase_event_vote(event_id, user_uuid, chat_id, status="Maybe")
+   # Map action to status
+    status_mapping = {
+        "upvote": "YES",
+        "downvote": "NO",
+        "questionmark": "MAYBE"
+    }
+    status = status_mapping.get(action)
 
-    # Update the message text
-    await query.edit_message_text(text=f"Thanks for your response, {username}!")
+    # Update the user's response in Supabase
+    update_supabase_event_vote(event_id, user_uuid, chat_id, status)
+
+    # Update the original message to show responses
+    await update_event_message(event_id, chat_id, message_id)
+    
+async def update_event_message(event_id, chat_id, message_id):
+    # Fetch event details
+    event = get_event_by_id(event_id)
+    event_name = event.get('name', 'Event')
+
+    # Fetch all responses for this event
+    responses = get_event_responses(event_id)  # Implement this function
+
+    # Organize responses by status
+    response_counts = {'YES': [], 'NO': [], 'MAYBE': []}
+    for response in responses:
+        resp_status = response['status']
+        user_id = response['userId']
+        user_info = get_user_info(user_id)  # Implement this function
+        user_name = user_info.get('username') or user_info.get('firstName')
+        response_counts[resp_status].append(user_name)
+
+    # Build the updated message text
+    response_text = f"The {event_name} is confirmed! Let us know if you're coming!\n\n"
+    for status, users in response_counts.items():
+        user_list = ', '.join(users) if users else 'No responses yet'
+        response_text += f"{status.title()} ({len(users)}): {user_list}\n"
+
+    # Reconstruct the inline keyboard
+    keyboard = [
+        [InlineKeyboardButton("Yes", callback_data=f"upvote_{event_id}"),
+         InlineKeyboardButton("No", callback_data=f"downvote_{event_id}"),
+         InlineKeyboardButton("Maybe", callback_data=f"questionmark_{event_id}")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Edit the original message
+    try:
+        await application.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text=response_text,
+            reply_markup=reply_markup
+        )
+    except Exception as e:
+        print(f"Failed to edit message: {e}")
 
 def update_supabase_event_vote(event_id, user_id, chat_id, status):
     # Define the status based on the upvote
@@ -210,7 +265,33 @@ def update_supabase_event_vote(event_id, user_id, chat_id, status):
             "status": status
         }).execute()
         print(f"Inserted new vote for user {user_id} with status {status}")
+        
+def get_user_info(user_id):
+    response = supabase.from_("User").select("*").eq("id", user_id).single().execute()
+    return response.data or {}
 
+def get_event_responses(event_id):
+    response = supabase.from_("EventRSVPs").select("*").eq("eventId", event_id).execute()
+    return response.data or []
+
+def get_event_by_id(event_id):
+    # Query the 'Event' table for the event with the specified event_id
+    response = supabase.from_("Event").select("*").eq("id", event_id).single().execute()
+    
+    # Check if the response was successful and data is returned
+    if response.data:
+        return response.data
+    else:
+        # Handle the case where the event is not found
+        print(f"No event found with id {event_id}")
+        return None
+
+def store_event_message(event_id, chat_id, message_id):
+    # Store message_id and chat_id in your database associated with the event_id
+    supabase.from_("Event").update({
+        "messageId": message_id,
+        "chatId": chat_id
+    }).eq("id", event_id).execute()
 
 async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
@@ -255,7 +336,7 @@ async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     print(MINI_APP_URL)
     # Create inline keyboard buttons stacked vertically
-    event_url = MINI_APP_URL + f"?uuid={generated_uuid}"
+    event_url = MINI_APP_URL + f"?event={generated_uuid}"
     event_idea_url = MINI_APP_URL + f"/event/{generated_uuid}/newidea"
     
     print(event_url)
@@ -275,7 +356,7 @@ async def schedule_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def test_rsvp_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await handle_event_confirmation(event_name="OpenAI Fan Meet", event_id="3658332e-006a-4236-9826-96a6bcb3da6d", chat_id=update.effective_chat.id, user_id=update.effective_user.id)
+    await handle_event_confirmation(event_name="Prisoner's Dilemma 8", event_id="745d4de3-71fd-4637-a3a4-fe2355ea27db", chat_id=update.effective_chat.id, user_id=update.effective_user.id)
     
 async def handle_message(update: Update, callback: CallbackContext):
     text = str(update.message.text).lower()
@@ -286,7 +367,7 @@ async def web_app_data(update: Update, context: CallbackContext):
     await update.message.reply_text("Your data was:")
     await update.message.reply_text(data)
 
-
+'''
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # """Parses the CallbackQuery and updates the message text."""
     query = update.callback_query
@@ -327,34 +408,78 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_reply_markup(reply_markup=reply_markup)
+'''
 
 # Sets the bot commands
 async def post_init(application: Application) -> None:
     await application.bot.set_my_commands([('start', 'Starts the bot'), ('echo', 'Add some commands after the command'), ('schedule', 'Schedule a meeting')])
 
+# Supabase listener function
+async def supabase_listener():
+    
+    # Define the event handler
+    async def on_event(payload):
+        event = payload["new"]
+        old_event = payload.get("old", {})
+        old_status = old_event.get("EventStatus")
+        new_status = event.get("EventStatus")
+
+        if old_status != "CONFIRMED" and new_status == "CONFIRMED":
+            event_name = event["name"]
+            event_id = event["id"]
+            chat_id = event["chatId"]
+            user_id = event["userId"]
+
+            # Schedule the handle_event_confirmation coroutine
+            asyncio.create_task(handle_event_confirmation(event_name, event_id, chat_id, user_id))
+
+    # Create a channel for real-time subscriptions
+    await socket.connect()
+    
+    channel = socket.channel("event-table-changes")
+    await channel.on_postgres_changes(
+        "UPDATE", table="Event", callback=on_event
+    ).subscribe()
+    
+    await socket.listen()
+
+    print("Listening for changes on the Event table...")
+
+    # Keep the listener running
+    try:
+        while True:
+            await asyncio.sleep(1)
+    except asyncio.CancelledError:
+        await channel.unsubscribe()
 
 
-if __name__ == '__main__':
-    # Run app builder
+async def main():
+    global application
     application = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
     
     # Command Handlers
     application.add_handler(CommandHandler('start', start_command))
-    application.add_handler(CommandHandler('echo', echo_command))
+    # application.add_handler(CommandHandler('echo', echo_command))
     application.add_handler(CommandHandler('schedule', schedule_command))
     application.add_handler(CommandHandler('confirm', confirm_command))
     application.add_handler(CommandHandler('test', test_function))
     application.add_handler(CommandHandler('test_rsvp', test_rsvp_command))
-    # application.add_handler(CallbackQueryHandler(button_callback))
-    
-    # Message Handlers
-    # application.add_handler(MessageHandler(filters.Text, handle_message))
 
     # Web App Data Handler
     application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data))   
-    # application.add_handler(CallbackQueryHandler(button))
     application.add_handler(CallbackQueryHandler(rsvp_button_click_handler))
     
-    # Run the bot 
+    # Start the Supabase listener as a background task
+    supabase_task = asyncio.create_task(supabase_listener())
+    
+    print("Bot started.")
+
     application.run_polling()
+
+    # Once the bot stops, cancel the Supabase listener
+    print("Bot stopped.")
+    supabase_task.cancel()
+    
+if __name__ == '__main__':
+    asyncio.run(main())
     
