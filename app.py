@@ -95,7 +95,7 @@ def confirm_command(update: Update, context: CallbackContext):
         update.message.reply_text(f"An error occurred: {e}")
 
 # Function to handle event confirmation from the web app
-def handle_event_confirmation(bot, event_name, event_id, chat_id, user_id):
+def handle_event_confirmation(bot, event_name, event_id, chat_id, user_id, topic_id):
     # Create inline buttons
     keyboard = [
         [InlineKeyboardButton("Yes", callback_data=f"upvote_{event_id}"),
@@ -111,6 +111,7 @@ def handle_event_confirmation(bot, event_name, event_id, chat_id, user_id):
     try:
         message = bot.send_message(
             chat_id=chat_id,
+            # message_thread_id = topic_id,
             text=f"The {event_name} is confirmed! Let us know if you're coming!",
             reply_markup=reply_markup
         )
@@ -249,6 +250,7 @@ def schedule_command(update: Update, context: CallbackContext):
 
     user_mention = user.mention_html()
     chat_id = update.effective_chat.id
+    
 
     # Insert the user into the Supabase DB if it doesn't exist:
     user_uuid = retrieve_user_key(user)
@@ -259,7 +261,8 @@ def schedule_command(update: Update, context: CallbackContext):
         "description": "",
         "chatId": chat_id,
         "userId": user_uuid,
-        "status": "PENDING"
+        "status": "PENDING",
+        # "topicId": topic_id,
     }
 
     try:
@@ -314,28 +317,29 @@ def post_init(application) -> None:
     bot = application.bot
     bot.set_my_commands([('start', 'Starts the bot'), ('schedule', 'Schedule a meeting')])
 
-# Supabase listener function using polling mechanism
 def supabase_listener(bot):
-    processed_event_ids = set()
     while True:
         try:
-            response = supabase.table('Event').select('*').eq('status', 'CONFIRMED').execute()
+            # Fetch events where status is 'CONFIRMED' and RSVP message hasn't been sent yet
+            response = supabase.table('Event').select('*').eq('status', 'CONFIRMED').eq('rsvpSent', False).execute()
             events = response.data or []
             for event in events:
                 event_id = event['id']
-                if event_id not in processed_event_ids:
-                    # Handle the event
-                    event_name = event['name']
-                    chat_id = event['chatId']
-                    user_id = event['userId']
-                    # Handle event confirmation
-                    handle_event_confirmation(bot, event_name, event_id, chat_id, user_id)
-                    processed_event_ids.add(event_id)
+                # Handle the event
+                event_name = event['name']
+                chat_id = event['chatId']
+                user_id = event['userId']
+                topic_id = event.get('topicId')
+                # Handle event confirmation
+                handle_event_confirmation(bot, event_name, event_id, chat_id, user_id, topic_id)
+                # Update the Event record to mark RSVPSent as True
+                supabase.table('Event').update({'rsvpSent': True}).eq('id', event_id).execute()
             # Sleep for some time
             time.sleep(5)
         except Exception as e:
             print(f"Error in supabase_listener: {e}")
             time.sleep(5)
+
 
 def main():
     global updater
