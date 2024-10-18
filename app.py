@@ -17,7 +17,7 @@ if os.path.exists(".env"):
 
 # Telegram Bot setup
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-MINI_APP_URL = "https://t.me/nexus1_bot/zzapp/"
+MINI_APP_URL = "https://t.me/nexus_ryan_bot/ryansapp/"
 BOT_URL = os.getenv('BOT_URL', 'https://t.me/NexusMiniApps_Bot/NexusMeet')
 APP_URL = os.getenv('APP_URL', "https://nexusmeet.vercel.app/new-meeting")
 
@@ -280,16 +280,12 @@ def schedule_command(update: Update, context: CallbackContext):
         f"{user_mention} is proposing that we have: {event_name}\n\n"
         "Choose an action below:"
     )
-    print(MINI_APP_URL)
-    # Create inline keyboard buttons stacked vertically
-    event_url = MINI_APP_URL + f"?event={generated_uuid}"
-    event_idea_url = MINI_APP_URL + f"/event/{generated_uuid}/newidea"
 
-    print(event_url)
-
+    print(MINI_APP_URL + f"?startapp={generated_uuid}/newidea")
+    
     keyboard = [
-        [InlineKeyboardButton("Share your ideas", url=event_url)],
-        [InlineKeyboardButton("Vote for your favorite idea", url=event_url)]
+        [InlineKeyboardButton("Share your ideas", url=MINI_APP_URL + f"?startapp={generated_uuid}newidea")],
+        [InlineKeyboardButton("Vote for your favorite idea", url=MINI_APP_URL + f"?startapp={generated_uuid}")]
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
