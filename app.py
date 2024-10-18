@@ -1,5 +1,6 @@
-from telegram import Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
-from telegram.ext import Updater, CallbackContext, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
+from telegram import Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.constants import ParseMode
+from telegram.ext import Updater, CallbackContext, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ApplicationBuilder
 from urllib.parse import urljoin
 import json
 import logging
@@ -17,7 +18,7 @@ if os.path.exists(".env"):
 
 # Telegram Bot setup
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-MINI_APP_URL = "https://t.me/nexus_ryan_bot/ryansapp/"
+MINI_APP_URL = os.getenv('MINI_APP_URL')
 BOT_URL = os.getenv('BOT_URL', 'https://t.me/NexusMiniApps_Bot/NexusMeet')
 APP_URL = os.getenv('APP_URL', "https://nexusmeet.vercel.app/new-meeting")
 
@@ -63,14 +64,14 @@ def start_command(update: Update, context: CallbackContext):
     update.message.reply_text("Welcome to NexusMeet!", reply_markup=InlineKeyboardMarkup(kb))
 
 # Handles the /confirm command to confirm an event
-def confirm_command(update: Update, context: CallbackContext):
+async def confirm_command(update: Update, context: CallbackContext):
     print("Confirm command triggered")
     try:
         # Fetch event name and chat id from the message
         if context.args:
             event_name = " ".join(context.args)
         else:
-            update.message.reply_text("Please provide the event name.")
+            await update.message.reply_text("Please provide the event name.")
             return
 
         chat_id = update.effective_chat.id
@@ -87,15 +88,15 @@ def confirm_command(update: Update, context: CallbackContext):
             keyboard = [[InlineKeyboardButton("Open Mini-App", url=app_url)]]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            update.message.reply_text("Event confirmed! Open the mini-app:", reply_markup=reply_markup)
+            await update.message.reply_text("Event confirmed! Open the mini-app:", reply_markup=reply_markup)
         else:
-            update.message.reply_text("No such event found for this chat.")
+            await update.message.reply_text("No such event found for this chat.")
 
     except Exception as e:
-        update.message.reply_text(f"An error occurred: {e}")
+        await update.message.reply_text(f"An error occurred: {e}")
 
 # Function to handle event confirmation from the web app
-def handle_event_confirmation(bot, event_name, event_id, chat_id, user_id, topic_id):
+async def handle_event_confirmation(bot, event_name, event_id, chat_id, user_id, topic_id):
     # Create inline buttons
     keyboard = [
         [InlineKeyboardButton("Yes", callback_data=f"upvote_{event_id}"),
@@ -109,9 +110,9 @@ def handle_event_confirmation(bot, event_name, event_id, chat_id, user_id, topic
 
     # Send message to the group chat
     try:
-        message = bot.send_message(
+        message = await bot.send_message(
             chat_id=chat_id,
-            # message_thread_id = topic_id,
+            message_thread_id = topic_id,
             text=f"The {event_name} is confirmed! Let us know if you're coming!",
             reply_markup=reply_markup
         )
@@ -122,7 +123,7 @@ def handle_event_confirmation(bot, event_name, event_id, chat_id, user_id, topic
         print(f"Failed to send message: {e}")
 
 # Handles the button clicks for RSVP
-def rsvp_button_click_handler(update: Update, context: CallbackContext):
+async def rsvp_button_click_handler(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer(text="Thanks for your response!", show_alert=False)
 
@@ -147,9 +148,9 @@ def rsvp_button_click_handler(update: Update, context: CallbackContext):
     update_supabase_event_vote(event_id, user_uuid, chat_id, status)
 
     # Update the original message to show responses
-    update_event_message(context.bot, event_id, chat_id, message_id)
+    await update_event_message(context.bot, event_id, chat_id, message_id)
 
-def update_event_message(bot, event_id, chat_id, message_id):
+async def update_event_message(bot, event_id, chat_id, message_id):
     # Fetch event details
     event = get_event_by_id(event_id)
     event_name = event.get('name', 'Event')
@@ -182,7 +183,7 @@ def update_event_message(bot, event_id, chat_id, message_id):
 
     # Edit the original message
     try:
-        bot.edit_message_text(
+        await bot.edit_message_text(
             chat_id=chat_id,
             message_id=message_id,
             text=response_text,
@@ -240,9 +241,9 @@ def store_event_message(event_id, chat_id, message_id):
         "chatId": chat_id
     }).eq("id", event_id).execute()
 
-def schedule_command(update: Update, context: CallbackContext):
+async def schedule_command(update: Update, context: CallbackContext):
     if not context.args:
-        update.message.reply_text("Please provide an event name after /schedule.")
+        await update.message.reply_text("Please provide an event name after /schedule.")
         return
 
     event_name = " ".join(context.args)
@@ -250,6 +251,7 @@ def schedule_command(update: Update, context: CallbackContext):
 
     user_mention = user.mention_html()
     chat_id = update.effective_chat.id
+    topic_id = update.effective_message.message_thread_id
     
 
     # Insert the user into the Supabase DB if it doesn't exist:
@@ -262,7 +264,7 @@ def schedule_command(update: Update, context: CallbackContext):
         "chatId": chat_id,
         "userId": user_uuid,
         "status": "PENDING",
-        # "topicId": topic_id,
+        "topicId": topic_id,
     }
 
     try:
@@ -294,7 +296,7 @@ def schedule_command(update: Update, context: CallbackContext):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     # Send the message with HTML formatting and inline keyboard
-    update.message.reply_text(
+    await update.message.reply_text(
         message,
         parse_mode=ParseMode.HTML,
         reply_markup=reply_markup
@@ -318,54 +320,59 @@ def post_init(application) -> None:
     bot.set_my_commands([('start', 'Starts the bot'), ('schedule', 'Schedule a meeting')])
 
 def supabase_listener(bot):
-    while True:
-        try:
-            # Fetch events where status is 'CONFIRMED' and RSVP message hasn't been sent yet
-            response = supabase.table('Event').select('*').eq('status', 'CONFIRMED').eq('rsvpSent', False).execute()
-            events = response.data or []
-            for event in events:
-                event_id = event['id']
-                # Handle the event
-                event_name = event['name']
-                chat_id = event['chatId']
-                user_id = event['userId']
-                topic_id = event.get('topicId')
-                # Handle event confirmation
-                handle_event_confirmation(bot, event_name, event_id, chat_id, user_id, topic_id)
-                # Update the Event record to mark RSVPSent as True
-                supabase.table('Event').update({'rsvpSent': True}).eq('id', event_id).execute()
-            # Sleep for some time
-            time.sleep(5)
-        except Exception as e:
-            print(f"Error in supabase_listener: {e}")
-            time.sleep(5)
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    async def listener():
+        while True:
+            try:
+                response = supabase.table('Event').select('*').eq('status', 'CONFIRMED').eq('rsvpSent', False).execute()
+                events = response.data or []
+                for event in events:
+                    event_id = event['id']
+                    # Handle the event
+                    event_name = event['name']
+                    chat_id = event['chatId']
+                    user_id = event['userId']
+                    topic_id = event.get('topicId')
+                    # Handle event confirmation
+                    await handle_event_confirmation(bot, event_name, event_id, chat_id, user_id, topic_id)
+                    # Update the Event record to mark RSVPSent as True
+                    supabase.table('Event').update({'rsvpSent': True}).eq('id', event_id).execute()
+                # Sleep for some time
+                await asyncio.sleep(5)
+            except Exception as e:
+                print(f"Error in supabase_listener: {e}")
+                await asyncio.sleep(5)
+
+    loop.run_until_complete(listener())
+
 
 
 def main():
-    global updater
-    updater = Updater(token=BOT_TOKEN, use_context=True)
-    dispatcher = updater.dispatcher
+    global app
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     # Command Handlers
-    dispatcher.add_handler(CommandHandler('start', start_command))
-    dispatcher.add_handler(CommandHandler('schedule', schedule_command))
-    dispatcher.add_handler(CommandHandler('confirm', confirm_command))
-    dispatcher.add_handler(CommandHandler('test', test_function))
-    dispatcher.add_handler(CommandHandler('test_rsvp', test_rsvp_command))
+    app.add_handler(CommandHandler('start', start_command))
+    app.add_handler(CommandHandler('schedule', schedule_command))
+    app.add_handler(CommandHandler('confirm', confirm_command))
+    app.add_handler(CommandHandler('test', test_function))
+    app.add_handler(CommandHandler('test_rsvp', test_rsvp_command))
 
     # Web App Data Handler
-    dispatcher.add_handler(MessageHandler(Filters.status_update.web_app_data, web_app_data))
-    dispatcher.add_handler(CallbackQueryHandler(rsvp_button_click_handler))
+    app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data))
+    app.add_handler(CallbackQueryHandler(rsvp_button_click_handler))
 
     # Start the Supabase listener as a background thread
-    bot = updater.bot
+    bot = app.bot
     supabase_thread = threading.Thread(target=supabase_listener, args=(bot,), daemon=True)
     supabase_thread.start()
 
     print("Bot started.")
 
-    updater.start_polling()
-    updater.idle()
+    app.run_polling()
 
     # Once the bot stops, the thread will exit because it's a daemon thread
     print("Bot stopped.")
