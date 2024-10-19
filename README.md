@@ -2,22 +2,37 @@
 
 Make changes, push, and it should automatically redeploy.
 
+# Where is the important stuff?
+```
+NexusBot/
+└───── app.py         // code for all major functions of the bot
+```
+
 # Local Development (Only for Bot Server side)
 
 1. Go to https://t.me/botfather and create a new bot. Note down the bot token generated.
 2. Git clone the repository.
-3. Create a virtual environment using `python -m venv venv` and activate it:
-   - On Windows, run `venv\Scripts\activate`
-   - On macOS and Linux, run `source venv/bin/activate`
-4. Install the required packages using `pip install -r requirements.txt`.
-5. Create a .env file in the root directory and add the following (refer to .env.example for the exact format)
+3. Set up poetry:
+   - Install pipx following the instructions in the [official doumentation](https://pipx.pypa.io/stable/installation/)
+   - Run `pipx install poetry`
+4. Install the required packages using `poetry install`.
+5. Create a .env file in the root directory and add the following
 
 ```bash
 BOT_TOKEN='YOUR_BOT_TOKEN'
-BOT_URL='https://t.me/[your_bot_name]'
+BOT_URL='https://t.me/[YOUR_BOT_NAME]'
+APP_URL="YOUR_NGROK_TUNNEL_URL"
+MINI_APP_URL="https://t.me/[YOUR_BOT_NAME]/[YOUR_MINI_APP_NAME]/"
+
+// All of the following can be found on the supabase dashboard
+SUPABASE_URL="YOUR_PROJECT_URL"
+SUPABASE_KEY="PROJECT_API_KEY"
+DATABASE_URL="CONNECTION_STRING(SESSION)"
+DIRECT_URL="CONNECTION_STRING(TRANSACTION)"
 ```
 
-6. Run `python app.py` in the terminal to start the bot server.
+6. Run `poetry shell` in the terminal to start the virtual environment.
+7. Run `python app.py` in the shell to start the bot server.
 
 # Local Development (Both Bot Server and Web Server side)
 
