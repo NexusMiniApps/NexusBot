@@ -289,8 +289,8 @@ async def schedule_command(update: Update, context: CallbackContext):
     print(MINI_APP_URL + f"?startapp={generated_uuid}/newidea")
     
     keyboard = [
-        [InlineKeyboardButton("Share your ideas", url=MINI_APP_URL + f"?startapp={generated_uuid}newidea")],
-        [InlineKeyboardButton("Vote for your favorite idea", url=MINI_APP_URL + f"?startapp={generated_uuid}")]
+        [InlineKeyboardButton("Share your ideas", url=MINI_APP_URL + f"?startapp={generated_uuid}newidea" + "&mode=compact")],
+        [InlineKeyboardButton("Vote for your favorite idea", url=MINI_APP_URL + f"?startapp={generated_uuid}" + "&mode=compact")]
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
