@@ -100,8 +100,12 @@ async def confirm_command(update: Update, context: CallbackContext):
 
 # Function to handle event confirmation from the web app
 async def handle_event_confirmation(bot, event_name, event_id, chat_id, user_id, topic_id):
+    # Define the URL for the event info page
+    event_info_url = MINI_APP_URL + f"?startapp={event_id}" + "&mode=compact"
+
     # Create inline buttons
     keyboard = [
+        [InlineKeyboardButton("View Event Info", url=event_info_url)],
         [InlineKeyboardButton("Yes", callback_data=f"upvote_{event_id}"),
          InlineKeyboardButton("No", callback_data=f"downvote_{event_id}"),
          InlineKeyboardButton("Maybe", callback_data=f"questionmark_{event_id}")]
