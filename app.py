@@ -48,7 +48,7 @@ def retrieve_user_key(user):
         return response.data[0]['id']
     else:
         print("User doesn't exist")
-        response = supabase.table('User').insert({'telegramId': user.id, 'username': user.username, 'firstName': user.first_name, 'lastName': user.last_name}).execute()
+        response = supabase.table('User').insert({'telegramId': user.id, 'username': user.username, 'firstName': user.first_name, 'lastName': user.last_name, 'updatedAt': datetime.utcnow().isoformat()}).execute()
         return response.data[0]['id']
 
 def test_function(update: Update, context: CallbackContext):
@@ -268,6 +268,7 @@ async def schedule_command(update: Update, context: CallbackContext):
         "userId": user_uuid,
         "status": "PENDING",
         "topicId": topic_id,
+        'updatedAt': datetime.utcnow().isoformat()
     }
 
     try:
