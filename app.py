@@ -187,7 +187,11 @@ async def update_event_message(bot, event_id, chat_id, message_id):
         response_text += f"{status.title()} ({len(users)}): {user_list}\n"
 
     # Reconstruct the inline keyboard
+    event_info_url = MINI_APP_URL + f"?startapp={event_id}" + "&mode=compact"
+
+    # Create inline buttons
     keyboard = [
+        [InlineKeyboardButton("View Event Info", url=event_info_url)],
         [InlineKeyboardButton("Yes", callback_data=f"upvote_{event_id}"),
          InlineKeyboardButton("No", callback_data=f"downvote_{event_id}"),
          InlineKeyboardButton("Maybe", callback_data=f"questionmark_{event_id}")]
@@ -215,7 +219,7 @@ def update_supabase_event_vote(event_id, user_id, chat_id, status):
     if response.data and len(response.data) > 0:
         # User has already voted, so update the existing vote
         vote_id = response.data[0]['id']
-        supabase.from_("EventRSVPs").update({"status": status}).eq("id", vote_id).execute()
+        supabase.from_("EventRSVPs").update({"status": status, "createdAt": datetime.now(timezone.utc).isoformat()}).eq("id", vote_id).execute()
         print(f"Updated existing vote for user {user_id} with status {status}")
     else:
         # User has not voted yet, insert a new row with the status
@@ -223,7 +227,9 @@ def update_supabase_event_vote(event_id, user_id, chat_id, status):
             "eventId": event_id,
             "userId": user_id,
             "chatId": chat_id,
-            "status": status
+            "status": status,
+            "createdAt": datetime.now(timezone.utc).isoformat(),
+            "updatedAt": datetime.now(timezone.utc).isoformat()
         }).execute()
         print(f"Inserted new vote for user {user_id} with status {status}")
 
