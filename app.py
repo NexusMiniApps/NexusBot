@@ -75,20 +75,23 @@ async def confirm_command(update: Update, context: CallbackContext):
             return
 
         chat_id = update.effective_chat.id
-        print(f"Event: {event_name}, Chat ID: {chat_id}")
+        
         # Query Supabase for the event and chat_id
-        data = supabase.table('Event').select('*').eq('name', event_name).eq('chatId', chat_id).eq('status', "PENDING").execute()
+        response = supabase.table('Event').select('*').eq('name', event_name).eq('chatId', chat_id).eq('status', "PENDING").execute()
+        
+        print('response')
+        print(response)  
 
         # Check if the event exists
-        if len(data.data) > 0:
-            # Construct the mini-app URL to open the to_confirm form and idea viewer
-            app_url = f"http://localhost:3000/eventId"
-
+        if response.data and len(response.data) > 0:
+            event_uuid = response.data[0]['id']
+            
             # Open the mini-app by sending a message with an inline button
-            keyboard = [[InlineKeyboardButton("Open Mini-App", url=app_url)]]
+            keyboard = [[InlineKeyboardButton("Open Mini-App", url=MINI_APP_URL + f"?startapp={event_uuid}" + "&mode=compact")]]
+        
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            await update.message.reply_text("Event confirmed! Open the mini-app:", reply_markup=reply_markup)
+            await update.message.reply_text("Event confirmed! Open the mini-app:", parse_mode=ParseMode.HTML,reply_markup=reply_markup)
         else:
             await update.message.reply_text("No such event found for this chat.")
 
@@ -286,7 +289,8 @@ async def schedule_command(update: Update, context: CallbackContext):
         "Choose an action below:"
     )
 
-    print(MINI_APP_URL + f"?startapp={generated_uuid}/newidea")
+    print(generated_uuid)
+    print(f"?startapp={generated_uuid}/newidea")
     
     keyboard = [
         [InlineKeyboardButton("Share your ideas", url=MINI_APP_URL + f"?startapp={generated_uuid}newidea" + "&mode=compact")],
