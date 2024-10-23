@@ -9,7 +9,7 @@ import threading
 from supabase import create_client, Client
 import uuid
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 if os.path.exists(".env"):
     # if we see the .env file, load it
@@ -48,7 +48,13 @@ def retrieve_user_key(user):
         return response.data[0]['id']
     else:
         print("User doesn't exist")
-        response = supabase.table('User').insert({'telegramId': user.id, 'username': user.username, 'firstName': user.first_name, 'lastName': user.last_name, 'updatedAt': datetime.utcnow().isoformat()}).execute()
+        response = supabase.table('User').insert({
+            'telegramId': user.id,
+            'username': user.username,
+            'firstName': user.first_name,
+            'lastName': user.last_name,
+            'updatedAt': datetime.now(timezone.utc).isoformat()  
+        }).execute()
         return response.data[0]['id']
 
 def test_function(update: Update, context: CallbackContext):
@@ -260,7 +266,6 @@ async def schedule_command(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     topic_id = update.effective_message.message_thread_id
     
-
     # Insert the user into the Supabase DB if it doesn't exist:
     user_uuid = retrieve_user_key(user)
 
@@ -272,7 +277,8 @@ async def schedule_command(update: Update, context: CallbackContext):
         "userId": user_uuid,
         "status": "PENDING",
         "topicId": topic_id,
-        'updatedAt': datetime.utcnow().isoformat()
+        'createdAt': datetime.now(timezone.utc).isoformat(),
+        'updatedAt': datetime.now(timezone.utc).isoformat()
     }
 
     try:
@@ -284,9 +290,13 @@ async def schedule_command(update: Update, context: CallbackContext):
             print(f"Data inserted successfully. Generated Event UUID: {generated_uuid}")
         else:
             print("No data returned from Supabase.")
+            await update.message.reply_text("Failed to schedule the event. Please try again.")
+            return  # Exit the function if insertion failed
 
     except Exception as e:
-        return
+        print(e)
+        await update.message.reply_text("An error occurred while scheduling the event.")
+        return  # Exit the function if an exception occurs
 
     # Construct the combined message
     message = (
@@ -310,6 +320,7 @@ async def schedule_command(update: Update, context: CallbackContext):
         parse_mode=ParseMode.HTML,
         reply_markup=reply_markup
     )
+
 
 def test_rsvp_command(update: Update, context: CallbackContext):
     handle_event_confirmation(context.bot, event_name="Prisoner's Dilemma 8", event_id="745d4de3-71fd-4637-a3a4-fe2355ea27db", chat_id=update.effective_chat.id, user_id=update.effective_user.id)
